@@ -1,25 +1,33 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
-const path = require('path'); // For resolving file paths
+const { MongoClient, ObjectId } = require('mongodb');
+const path = require('path');
 
 const app = express();
 const port = 3000;
 
 app.use(cors());
 app.use(express.json());
-
-// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
 const uri = '***REMOVED***/?authMechanism=DEFAULT';
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+let database;
+
+// Connect to MongoDB
+client.connect()
+    .then(() => {
+        database = client.db('production');
+        console.log('Connected to MongoDB');
+    })
+    .catch(err => {
+        console.error('Failed to connect to MongoDB', err);
+        process.exit(1); // Exit the process if MongoDB connection fails
+    });
 
 // API route to get centers and student counts
 app.get('/api/centers', async (req, res) => {
     try {
-        await client.connect();
-        const database = client.db('production');
         const centers = database.collection('organizations');
         const result = await centers.aggregate([
             {
@@ -40,23 +48,17 @@ app.get('/api/centers', async (req, res) => {
         res.json(result);
     } catch (error) {
         res.status(500).send('Error fetching centers data');
-    } finally {
-        await client.close();
     }
 });
 
 // API route to get all students
 app.get('/api/students', async (req, res) => {
     try {
-        await client.connect();
-        const database = client.db('production');
         const students = database.collection('students');
         const result = await students.find().toArray();
         res.json(result);
     } catch (error) {
         res.status(500).send('Error fetching students data');
-    } finally {
-        await client.close();
     }
 });
 
@@ -64,27 +66,42 @@ app.get('/api/students', async (req, res) => {
 app.get('/api/student/:id', async (req, res) => {
     const studentId = req.params.id;
     try {
-        await client.connect();
-        const database = client.db('production');
-        const students = database.collection('students');
-        const student = await students.findOne({ _id: new MongoClient.ObjectId(studentId) });
+        const answerLogs = database.collection('answerlogs');
+        const results = await answerLogs.find({ userId: new ObjectId(studentId) }).toArray();
         
-        if (!student) {
-            return res.status(404).send('Student not found');
-        }
-
-        const progress = await database.collection('systemanswers').find({ studentId: studentId }).toArray();
+        const progress = results.map(result => ({
+            attemptNumber: result._id.toString(), // or any identifier you use for attempts
+            totalScore: result.score.totalScore,
+            totalPoints: result.score.totalPoints
+        }));
         
-        res.json({ student, progress });
+        res.json(progress);
     } catch (error) {
         res.status(500).send(`Error fetching progress for student ${studentId}`);
-    } finally {
-        await client.close();
     }
 });
 
+// API route to get the number of days since creation for each organization
+app.get('/api/organizations', async (req, res) => {
+    try {
+        const organizations = database.collection('organizations');
+        const orgs = await organizations.find().toArray();
+        const currentDate = new Date();
+        const data = orgs.map(org => {
+            const creationDate = new Date(org.createdAt); // Convert createdAt to Date object
+            const daysSinceCreation = Math.floor((currentDate - creationDate) / (1000 * 60 * 60 * 24)); // Calculate days
+            return {
+                organizationName: org.organizationName || org._id.toString(), // Adjust field name based on actual data
+                daysSinceCreation
+            };
+        });
+        res.json(data);
+    } catch (error) {
+        console.error('Error fetching organizations data:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
 
-// Serve index.html for the root URL
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
