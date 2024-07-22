@@ -37,9 +37,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fetch data for all students
     fetch('/api/students')
         .then(response => response.json())
-        .then(data => {
+        .then(students => {
             // Create charts for each student
-            data.forEach(student => {
+            students.forEach(student => {
                 const studentId = student._id;
                 const studentName = student.firstName + ' ' + student.lastName;
 
@@ -47,15 +47,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetch(`/api/student/${studentId}`)
                     .then(response => response.json())
                     .then(progressData => {
-                        const tasks = progressData.progress; // Assuming data.progress is an array of task objects
-
-                        if (!tasks || tasks.length === 0) {
+                        if (!progressData || progressData.length === 0) {
                             console.warn(`No progress data available for student ${studentName}`);
                             return;
                         }
 
-                        const taskLabels = tasks.map(task => `Task ${task.taskId}`); // Create labels for each task
-                        const taskScores = tasks.map(task => task.score); // Scores for each task
+                        const attempts = progressData.map(p => p.attemptNumber);
+                        const totalScores = progressData.map(p => p.totalScore);
+                        const totalPoints = progressData.map(p => p.totalPoints);
 
                         // Create a new canvas element for each student
                         const canvas = document.createElement('canvas');
@@ -64,23 +63,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         const ctx = canvas.getContext('2d');
                         new Chart(ctx, {
-                            type: 'bar',
+                            type: 'line', // Using line chart to show progress over attempts
                             data: {
-                                labels: taskLabels,
-                                datasets: [{
-                                    label: `${studentName}'s Progress`,
-                                    data: taskScores,
-                                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                                    borderColor: 'rgba(153, 102, 255, 1)',
-                                    borderWidth: 1
-                                }]
+                                labels: attempts,
+                                datasets: [
+                                    {
+                                        label: `${studentName}'s Total Score`,
+                                        data: totalScores,
+                                        borderColor: 'rgba(75, 192, 192, 1)',
+                                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                        fill: false
+                                    },
+                                    {
+                                        label: `${studentName}'s Total Points`,
+                                        data: totalPoints,
+                                        borderColor: 'rgba(153, 102, 255, 1)',
+                                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                                        fill: false
+                                    }
+                                ]
                             },
                             options: {
                                 scales: {
                                     x: {
-                                        beginAtZero: true
+                                        title: {
+                                            display: true,
+                                            text: 'Attempt Number'
+                                        }
                                     },
                                     y: {
+                                        title: {
+                                            display: true,
+                                            text: 'Score / Points'
+                                        },
                                         beginAtZero: true
                                     }
                                 }
@@ -91,4 +106,38 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         })
         .catch(error => console.error('Error fetching students data:', error));
+
+    // Fetch data for the number of days since creation for each organization
+    fetch('/api/organizations')
+        .then(response => response.json())
+        .then(data => {
+            const labels = data.map(item => item.organizationName);
+            const values = data.map(item => item.daysSinceCreation);
+
+            const ctx2 = document.getElementById('organizationsChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Days Since Creation for Each Organization',
+                        data: values,
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error fetching data for organizations:', error));
 });
