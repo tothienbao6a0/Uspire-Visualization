@@ -11,7 +11,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGODB_URI; // replace the part after the = sign with your connection URI and then add the ; after
+
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 let database;
 
