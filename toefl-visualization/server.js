@@ -70,18 +70,27 @@ app.get('/api/student/:id', async (req, res) => {
     try {
         const answerLogs = database.collection('answerlogs');
         const results = await answerLogs.find({ userId: new ObjectId(studentId) }).toArray();
-        
-        const progress = results.map(result => ({
-            attemptNumber: result._id.toString(), // or any identifier you use for attempts
-            totalScore: result.score.totalScore,
-            totalPoints: result.score.totalPoints
-        }));
-        
-        res.json(progress);
+
+        // Group by question_type
+        const progressByType = results.reduce((acc, result) => {
+            const type = result.question_type;
+            if (!acc[type]) {
+                acc[type] = [];
+            }
+            acc[type].push({
+                attemptNumber: result._id.toString(),
+                totalScore: result.score.totalScore,
+                totalPoints: result.score.totalPoints
+            });
+            return acc;
+        }, {});
+
+        res.json(progressByType);
     } catch (error) {
         res.status(500).send(`Error fetching progress for student ${studentId}`);
     }
 });
+
 
 // API route to get the number of days since creation for each organization
 app.get('/api/organizations', async (req, res) => {

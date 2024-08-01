@@ -28,13 +28,26 @@ canvas {
     background-color: #f9f9f9;
 }
 
-#chartsContainer canvas {
-    margin: 10px auto;
-    border: 1px solid #ccc;
+/* Flexbox layout for student charts */
+.studentContainer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 40px;
 }
 
-/* New styles for canvas size */
-canvas {
+/* Adjusted size for individual student's charts */
+.studentContainer canvas {
+    flex: 1 1 calc(50% - 20px); /* 2 columns layout with gap */
+    max-width: 350px;  /* Adjusted width for student charts */
+    max-height: 280px; /* Adjusted height for student charts */
+    box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+}
+
+/* Specific sizes for individual charts */
+#studentsChart,
+#organizationsChart {
     width: 1000px;
     height: 800px;
 }

@@ -36,46 +36,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Fetch data for all students
     fetch('/api/students')
-        .then(response => response.json())
-        .then(students => {
-            // Create charts for each student
-            students.forEach(student => {
-                const studentId = student._id;
-                const studentName = student.firstName + ' ' + student.lastName;
+    .then(response => response.json())
+    .then(students => {
+        students.forEach(student => {
+            const studentId = student._id;
+            const studentName = student.firstName + ' ' + student.lastName;
 
-                // Fetch progress data for each student
-                fetch(`/api/student/${studentId}`)
-                    .then(response => response.json())
-                    .then(progressData => {
-                        if (!progressData || progressData.length === 0) {
-                            console.warn(`No progress data available for student ${studentName}`);
-                            return;
-                        }
+            fetch(`/api/student/${studentId}`)
+                .then(response => response.json())
+                .then(progressData => {
+                    if (!progressData || Object.keys(progressData).length === 0) {
+                        console.warn(`No progress data available for student ${studentName}`);
+                        return;
+                    }
 
-                        const attempts = progressData.map(p => p.attemptNumber);
-                        const totalScores = progressData.map(p => p.totalScore);
-                        const totalPoints = progressData.map(p => p.totalPoints);
+                    // Create a container div for each student
+                    const studentContainer = document.createElement('div');
+                    studentContainer.classList.add('studentContainer');
+                    document.getElementById('chartsContainer').appendChild(studentContainer);
 
-                        // Create a new canvas element for each student
+                    // Create a 2x2 grid for the student's charts
+                    ['SPEAKING', 'WRITING', 'LISTENING', 'READING'].forEach(type => {
+                        const progress = progressData[type];
+                        if (!progress) return;
+
+                        const attempts = progress.map(p => p.attemptNumber);
+                        const totalScores = progress.map(p => p.totalScore);
+                        const totalPoints = progress.map(p => p.totalPoints);
+
+                        // Create a canvas element for each question_type chart
                         const canvas = document.createElement('canvas');
-                        canvas.id = `progressChart-${studentId}`;
-                        document.getElementById('chartsContainer').appendChild(canvas);
+                        canvas.id = `progressChart-${studentId}-${type}`;
+                        studentContainer.appendChild(canvas);
 
                         const ctx = canvas.getContext('2d');
                         new Chart(ctx, {
-                            type: 'line', // Using line chart to show progress over attempts
+                            type: 'line',
                             data: {
                                 labels: attempts,
                                 datasets: [
                                     {
-                                        label: `${studentName}'s Total Score`,
+                                        label: `${studentName} - ${type} Total Score`,
                                         data: totalScores,
                                         borderColor: 'rgba(75, 192, 192, 1)',
                                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
                                         fill: false
                                     },
                                     {
-                                        label: `${studentName}'s Total Points`,
+                                        label: `${studentName} - ${type} Total Points`,
                                         data: totalPoints,
                                         borderColor: 'rgba(153, 102, 255, 1)',
                                         backgroundColor: 'rgba(153, 102, 255, 0.2)',
@@ -101,11 +109,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }
                             }
                         });
-                    })
-                    .catch(error => console.error(`Error fetching progress for student ${studentId}:`, error));
-            });
-        })
-        .catch(error => console.error('Error fetching students data:', error));
+                    });
+                })
+                .catch(error => console.error(`Error fetching progress for student ${studentId}:`, error));
+        });
+    })
+    .catch(error => console.error('Error fetching students data:', error));
+
 
     // Fetch data for the number of days since creation for each organization
     fetch('/api/organizations')
